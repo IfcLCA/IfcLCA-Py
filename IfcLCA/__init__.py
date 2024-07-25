@@ -1,0 +1,1 @@
+# Initialize the IfcLCA package by importing the necessary modules.
