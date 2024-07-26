@@ -2,9 +2,9 @@ name: Python package
 
 on:
   push:
-    branches: ["main", "release"]
+    branches: ["release"]
   pull_request:
-    branches: ["main"]
+    branches: ["release"]
   workflow_dispatch:
 
 jobs:
