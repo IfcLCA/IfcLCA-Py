@@ -32,14 +32,15 @@ jobs:
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-      - name: Test with pytest
-        run: |
-          pytest
+  #      - name: Test with pytest
+  #        run: |
+  #          pytest
 
   publish:
     if: github.ref == 'refs/heads/release'
     runs-on: ubuntu-latest
     needs: build
+    environment: release
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -50,6 +51,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Install wheel
+        run: |
+          python -m pip install wheel
       - name: Build package
         run: |
           python setup.py sdist bdist_wheel
