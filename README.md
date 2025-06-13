@@ -263,4 +263,3 @@ This project is licensed under the GNU Affero General Public License v3.0 - see 
 
 - IfcOpenShell community for the excellent IFC toolkit
 - KBOB and ÖKOBAUDAT for providing open environmental data
-- LCAbyg and other tools that inspired this project
