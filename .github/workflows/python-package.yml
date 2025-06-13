@@ -3,6 +3,7 @@ name: Python package
 on:
   push:
     branches: ["release"]
+    tags: ["v*"]
   pull_request:
     branches: ["release"]
   workflow_dispatch:
@@ -10,57 +11,79 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.9", "3.10", "3.11"]
-
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
+
+      - name: Set up Python 3.12
         uses: actions/setup-python@v3
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install flake8 pytest
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
       - name: Lint with flake8
         run: |
-          # Stop the build if there are Python syntax errors or undefined names
+          # Stop the build on syntax errors or undefined names
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+          # Treat all other errors as warnings
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-  #      - name: Test with pytest
-  #        run: |
-  #          pytest
 
   publish:
-    if: github.ref == 'refs/heads/release'
-    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: build
+    runs-on: ubuntu-latest
     environment: release
+
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
+
+      - name: Set up Python 3.12
         uses: actions/setup-python@v3
         with:
-          python-version: "3.10"
+          python-version: "3.12"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: Install wheel
+
+      - name: Install wheel & twine
         run: |
-          python -m pip install wheel
+          python -m pip install wheel twine
+
+      - name: Extract and validate version from tag
+        id: get_version
+        run: |
+          # Extract version from tag (remove 'v' prefix)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          
+          # Validate version format (allows for alpha/beta versions)
+          if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)?[0-9]*$ ]]; then
+            echo "Error: Invalid version format. Expected format: X.Y.Z[a|b|rc]N (e.g., 0.1.0a1)"
+            exit 1
+          fi
+          
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Using version: $VERSION"
+
+      - name: Update version in setup.py
+        run: |
+          # Update the version in setup.py dynamically
+          sed -i "s/version='[^']*'/version='$VERSION'/" setup.py
+          echo "Updated setup.py with version: $VERSION"
+          grep "version=" setup.py
+
       - name: Build package
         run: |
           python setup.py sdist bdist_wheel
-      - name: Publish package
+
+      - name: Publish to PyPI
         run: |
-          python -m pip install twine
-          twine upload dist/*
+          twine upload --skip-existing dist/*
         env:
           TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
